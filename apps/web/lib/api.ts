@@ -9,6 +9,8 @@
  * multipart conveniences. Later tasks (forms, login, dashboard) build on these.
  */
 
+import { getToken } from "@/lib/auth";
+
 const DEFAULT_BASE_URL = "http://localhost:8000";
 
 export function getApiBaseUrl(): string {
@@ -110,6 +112,51 @@ export function postForm<T>(
     ...options,
     body: form,
   });
+}
+
+/**
+ * Merge the stored bearer token into request headers.
+ *
+ * Reads the JWT from the client-side auth store and returns headers with an
+ * `Authorization: Bearer <token>` entry. Used by the authorized helpers below so
+ * guarded endpoints (GET /leads, PATCH /leads/{id}/state, ...) receive the token.
+ * When no token is present the headers are returned unchanged, letting the API
+ * respond with its normal 401.
+ */
+export function withAuth(options: RequestOptions = {}): RequestOptions {
+  const token = getToken();
+  if (!token) return options;
+  return {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  };
+}
+
+/** GET a JSON response with the attorney's bearer token attached. */
+export function getJsonAuthed<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  return getJson<T>(path, withAuth(options));
+}
+
+/** Response DTO for POST /auth/login (mirrors the API's TokenResponse). */
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+}
+
+/**
+ * Authenticate the seeded attorney via POST /auth/login.
+ *
+ * Returns the token DTO on success; throws `ApiError` (401) on invalid
+ * credentials. Storing the token is the caller's responsibility (see lib/auth).
+ */
+export function login(email: string, password: string): Promise<TokenResponse> {
+  return postJson<TokenResponse>("/auth/login", { email, password });
 }
 
 export interface HealthResponse {
