@@ -14,7 +14,7 @@ import os
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.engine import URL
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.models import Base
@@ -66,11 +66,16 @@ def engine():
 
 @pytest.fixture()
 def db_session(engine) -> Session:
-    """A session wrapped in a transaction that is rolled back after each test."""
+    """A session wrapped in a transaction that is rolled back after each test.
+
+    The session joins the outer transaction in ``create_savepoint`` mode so that
+    code under test which commits (e.g. ``LeadService.create``) only releases a
+    SAVEPOINT — the surrounding transaction is still rolled back at teardown,
+    keeping every test isolated even when the service layer commits.
+    """
     connection = engine.connect()
     transaction = connection.begin()
-    factory = sessionmaker(bind=connection, autocommit=False, autoflush=False)
-    session = factory()
+    session = Session(bind=connection, join_transaction_mode="create_savepoint")
     try:
         yield session
     finally:

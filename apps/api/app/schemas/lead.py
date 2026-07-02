@@ -21,6 +21,12 @@ class LeadCreate(BaseModel):
     email: EmailStr
 
 
+class LeadStateUpdate(BaseModel):
+    """Body of ``PATCH /leads/{id}/state``: the target state for the lead."""
+
+    state: LeadState
+
+
 class LeadOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
