@@ -21,5 +21,34 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      # Reach db and mailpit by their compose service names.
+      DATABASE_URL: postgresql+psycopg://legal:legal@db:5432/legal
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      UPLOADS_DIR: /app/uploads
+      JWT_SECRET: change-me
+      SEED_ATTORNEY_EMAIL: attorney@example.com
+      SEED_ATTORNEY_PASSWORD: change-me
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
 volumes:
   pgdata:
+  uploads:
