@@ -1,0 +1,78 @@
+Prompt Logs
+===========
+
+Representative prompt and session excerpts from the build of the Legal Clinic
+Leads app. The project was built task by task, each in its own Cursor session,
+against a reviewed design doc (docs/design.md) and a dependency-ordered plan
+(docs/plan.md). Excerpts below show the working pattern: plan, build one task,
+verify, correct where needed.
+
+
+Design and planning
+-------------------
+The build started from a brainstorming session that produced docs/design.md and
+docs/plan.md before any code was written. The design doc fixed the hard
+constraints up front: FastAPI plus Next.js, Postgres, Mailpit for email, thin
+routers with all business logic in services and all DB access in repositories,
+and a Docker Compose runtime that comes up with one command. The plan then broke
+the design into 16 dependency-ordered tasks, each sized for a single session and
+ending in a committable state, so no early task depended on a later one.
+
+
+A build task prompt (Task 10, the HTTP layer)
+-------------------
+"Build ONLY Task 10. Do not start any later task.
+
+Layering rules (strict, this is the most important task for layering):
+- Routers stay thin. A router only parses input, validates against a schema,
+  calls one service method, and maps results or errors to HTTP responses.
+- No DB queries in routers. No DB session logic in routers beyond passing the
+  injected session into a service. No business rules in routers. No file IO in
+  routers.
+- Mapping a domain exception to an HTTP status code is allowed in the router.
+  Deciding business logic is not.
+- Services hold logic, repositories hold DB access. Do not skip layers.
+...
+When done:
+- Run the API tests and show me the full raw output. Tests must prove: public
+  create works without auth; guarded routes return 401 without a token and
+  succeed with one; wrong password and unknown email both return an identical
+  generic 401; state transition works; resume endpoint sets Content-Disposition
+  to the original filename and correct content type."
+
+Result: 14 API tests passed, full suite 53 passed. Layering held: routers do no
+DB queries, no file IO, no business rules, only parse, one service call, and
+error mapping.
+
+
+A correction I sent (auth timing side channel)
+-------------------
+While reviewing the auth service I flagged a user-enumeration timing leak: the
+first version only ran the password check when the user existed, so an unknown
+email returned faster than a wrong password. Correction sent:
+
+"Fix a timing side channel in AuthService.login: right now, when the email is
+unknown, the code skips password verification, so unknown-email returns faster
+than wrong-password. Fix it so both paths take the same time: always run a real
+bcrypt password verification, even when no user is found, by verifying against a
+fixed dummy bcrypt hash. Still raise the same generic InvalidCredentialsError on
+any failure. Do not change the error message or response shape."
+
+The fix computes the password check once per attempt, against the real hash when
+the user exists or a fixed dummy hash when it does not, so both failure paths do
+equal bcrypt work and return an identical 401.
+
+
+A review exchange (verifying tests are real, not hollow)
+-------------------
+Rather than trust "tests pass," I asked for proof the tests were meaningful:
+
+"Re-run the auth service tests and show me proof they are real: run with -v, show
+the full raw output including the pytest and python version header, paste the
+full contents of the test file so I can read what is actually being asserted, and
+confirm the run used the venv Python, not system Python."
+
+The tests were confirmed to hit real Postgres through the real repository with a
+real bcrypt hash, to decode the returned JWT and assert its subject equals the
+DB-assigned attorney id, and to assert both auth failure modes return a
+byte-for-byte identical generic message with no enumeration-leaking words.
