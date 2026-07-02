@@ -194,6 +194,9 @@ tests/                     # unit (services w/ mocks) + integration (API + test 
 - `GET /leads` — auth-guarded. Lists all leads.
 - `PATCH /leads/{id}/state` — auth-guarded. Transitions a lead's state
   (`PENDING` → `REACHED_OUT`).
+- `GET /leads/{id}/resume` — auth-guarded. Streams the stored resume file with
+  `Content-Disposition` set to the original filename and the stored content type
+  (PDF renders inline; DOCX downloads).
 - `POST /auth/login` — issues a JWT for the seeded attorney.
 - `GET /health` — liveness/readiness for the `web` healthcheck dependency.
 
