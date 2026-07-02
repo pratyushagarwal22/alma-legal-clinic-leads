@@ -205,3 +205,64 @@ export function createLead(input: CreateLeadInput): Promise<Lead> {
   form.append("resume", input.resume);
   return postForm<Lead>("/leads", form);
 }
+
+/**
+ * List every lead for the internal dashboard (GET /leads, guarded).
+ *
+ * Sends the attorney's bearer token; the API responds with 401 when it is
+ * missing or invalid.
+ */
+export function listLeads(): Promise<Lead[]> {
+  return getJsonAuthed<Lead[]>("/leads");
+}
+
+/**
+ * Transition a lead's state (PATCH /leads/{id}/state, guarded).
+ *
+ * Used by the dashboard to mark a lead REACHED_OUT. Returns the updated lead.
+ */
+export function updateLeadState(leadId: number, state: LeadState): Promise<Lead> {
+  const authed = withAuth({ headers: { "Content-Type": "application/json" } });
+  return request<Lead>(`/leads/${leadId}/state`, {
+    method: "PATCH",
+    ...authed,
+    body: JSON.stringify({ state }),
+  });
+}
+
+/** The resume file bytes plus the content type reported by the API. */
+export interface ResumeFile {
+  blob: Blob;
+  contentType: string;
+}
+
+/**
+ * Fetch a lead's resume (GET /leads/{id}/resume, guarded).
+ *
+ * This endpoint streams a file rather than JSON and is auth-guarded, so we can't
+ * use a plain anchor href (the token lives in a header, not a cookie). We fetch
+ * with the bearer token attached and hand back the raw blob; the caller decides
+ * whether to open it in a new tab (PDF) or download it (DOCX).
+ */
+export async function fetchResume(leadId: number): Promise<ResumeFile> {
+  const url = `${getApiBaseUrl()}/leads/${leadId}/resume`;
+  const token = getToken();
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+
+  if (!response.ok) {
+    const payload = await parseBody(response);
+    const message =
+      (isRecord(payload) && typeof payload.detail === "string"
+        ? payload.detail
+        : response.statusText) || `Request failed with ${response.status}`;
+    throw new ApiError(response.status, message, payload);
+  }
+
+  const blob = await response.blob();
+  const contentType =
+    response.headers.get("content-type") ?? "application/octet-stream";
+  return { blob, contentType };
+}
