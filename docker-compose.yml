@@ -49,6 +49,32 @@ services:
       retries: 5
       start_period: 20s
 
+  web:
+    build:
+      context: ./apps/web
+      args:
+        # Baked into the browser bundle at build time. The browser reaches the
+        # API on the host-mapped port, so this must be localhost:8000 (NOT the
+        # compose service name, which only resolves inside the network).
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      # Only start the web app once the API is healthy.
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "node -e \"require('http').get('http://localhost:3000/apply', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\""
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
 volumes:
   pgdata:
   uploads:

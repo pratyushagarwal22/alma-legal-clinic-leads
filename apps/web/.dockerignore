@@ -1,0 +1,18 @@
+# Never copy host build artifacts or deps into the image — they are reinstalled
+# and rebuilt for the container's platform inside the Dockerfile.
+node_modules
+.next
+out
+build
+
+# Local env + misc
+.env
+.env.local
+.env*.local
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+
+# Docker
+Dockerfile
+.dockerignore
