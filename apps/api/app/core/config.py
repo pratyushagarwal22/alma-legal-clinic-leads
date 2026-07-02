@@ -17,6 +17,8 @@ class Settings(BaseSettings):
 
     # Auth / JWT (Task 8+)
     jwt_secret: str = "change-me"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expires_minutes: int = 60
 
     # Email / SMTP -> Mailpit (Task 7+)
     smtp_host: str = "localhost"
