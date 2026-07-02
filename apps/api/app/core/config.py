@@ -12,6 +12,9 @@ class Settings(BaseSettings):
 
     app_name: str = "Legal Clinic Leads API"
 
+    # CORS: origins allowed to call the API from a browser (the Next.js web app).
+    cors_allow_origins: list[str] = ["http://localhost:3000"]
+
     # Database (Task 2+)
     database_url: str = "postgresql+psycopg://legal:legal@localhost:5432/legal"
 

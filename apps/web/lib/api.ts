@@ -120,3 +120,41 @@ export interface HealthResponse {
 export function getHealth(): Promise<HealthResponse> {
   return getJson<HealthResponse>("/health");
 }
+
+export type LeadState = "PENDING" | "REACHED_OUT";
+
+/** Response DTO for a lead (mirrors the API's LeadOut — no internal fields). */
+export interface Lead {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  state: LeadState;
+  resume_original_name: string;
+  resume_content_type: string;
+  resume_size: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateLeadInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  resume: File;
+}
+
+/**
+ * Create a lead via the public multipart endpoint (POST /leads).
+ *
+ * Field names match the API's Form(...) parameters exactly. The browser sets
+ * the multipart Content-Type + boundary for us (see `postForm`).
+ */
+export function createLead(input: CreateLeadInput): Promise<Lead> {
+  const form = new FormData();
+  form.append("first_name", input.firstName);
+  form.append("last_name", input.lastName);
+  form.append("email", input.email);
+  form.append("resume", input.resume);
+  return postForm<Lead>("/leads", form);
+}

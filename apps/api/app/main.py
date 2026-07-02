@@ -7,6 +7,7 @@ which field was wrong.
 """
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.routers import auth, health, leads
@@ -19,6 +20,14 @@ def create_app() -> FastAPI:
     """Application factory: build the FastAPI app, register routers and errors."""
     settings = get_settings()
     app = FastAPI(title=settings.app_name)
+
+    # Allow the browser-based web app to call the API cross-origin.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_allow_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     app.include_router(health.router)
     app.include_router(auth.router)
